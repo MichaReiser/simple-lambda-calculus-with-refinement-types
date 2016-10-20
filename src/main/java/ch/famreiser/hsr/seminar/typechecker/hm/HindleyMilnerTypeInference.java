@@ -2,6 +2,8 @@ package ch.famreiser.hsr.seminar.typechecker.hm;
 
 import ch.famreiser.hsr.seminar.generated.LambdaCalculusBaseVisitor;
 import ch.famreiser.hsr.seminar.generated.LambdaCalculusParser;
+import ch.famreiser.hsr.seminar.typechecker.LexicalScope;
+import ch.famreiser.hsr.seminar.typechecker.Symbol;
 import ch.famreiser.hsr.seminar.typechecker.types.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 
@@ -10,15 +12,17 @@ import org.antlr.v4.runtime.ParserRuleContext;
  */
 public class HindleyMilnerTypeInference {
 
-    public Shape infer(ParserRuleContext expression) throws TypeInferenceException {
-        return infer(TypeEnvironmentImpl.empty(), expression);
+    public Shape infer(ParserRuleContext expression) throws TypeError {
+        return infer(TypeEnvironment.empty(), LexicalScope.empty(), expression);
     }
 
-    public Shape infer(TypeEnvironment typeEnvironment, ParserRuleContext expression) throws TypeInferenceException {
-        return expression.accept(new HindleyMilnerVisitor(typeEnvironment));
+    public Shape infer(TypeEnvironment typeEnvironment, LexicalScope lexicalScope, ParserRuleContext expression) throws TypeError {
+        Shape result = expression.accept(new HindleyMilnerVisitor(typeEnvironment, lexicalScope));
+        System.out.println(typeEnvironment);
+        return result;
     }
 
-    public Shape unify(Shape a, Shape b) throws TypeInferenceException {
+    public Shape unify(Shape a, Shape b) throws TypeError {
         Shape resolvedA = a.resolved();
         Shape resolvedB = b.resolved();
 
@@ -28,7 +32,7 @@ public class HindleyMilnerTypeInference {
 
         if (resolvedA instanceof TypeVariable) {
             if (resolvedA.contains(resolvedB)) {
-                throw new TypeInferenceException("The type " + resolvedB + " occurres in the type " + resolvedA + ".");
+                throw new TypeError("The type " + resolvedB + " occurres in the type " + resolvedA + ".");
             }
 
             ((TypeVariable) resolvedA).resolve(resolvedB);
@@ -44,14 +48,16 @@ public class HindleyMilnerTypeInference {
             return AbstractionType.create(unify(aAbstraction.getArgument(), bAbstraction.getArgument()), unify(aAbstraction.getReturnType(), bAbstraction.getReturnType()));
         }
 
-        throw new TypeInferenceException("The type " + a + " and " + b + " cannot be unified, no unification therefore exists");
+        throw new TypeError("The type " + a + " and " + b + " cannot be unified, no unification therefore exists");
     }
 
     private class HindleyMilnerVisitor extends LambdaCalculusBaseVisitor<Shape> {
         private final TypeEnvironment typeEnvironment;
+        private final LexicalScope lexicalScope;
 
-        HindleyMilnerVisitor(TypeEnvironment typeEnvironment) {
+        HindleyMilnerVisitor(TypeEnvironment typeEnvironment, LexicalScope lexicalScope) {
             this.typeEnvironment = typeEnvironment;
+            this.lexicalScope = lexicalScope;
         }
 
         @Override
@@ -59,15 +65,21 @@ public class HindleyMilnerTypeInference {
             if (ctx.Bool() != null) {
                 return BoolType.create();
             }
-            return NumberType.create();
+            return IntType.create();
         }
 
         @Override
         public Shape visitVariable(LambdaCalculusParser.VariableContext ctx) {
-            Shape type = this.typeEnvironment.getType(ctx.Identifier().getText());
+            Symbol symbol = this.lexicalScope.get(ctx.Identifier().getText());
+
+            if (symbol == null) {
+                throw new TypeError("The variable " + ctx.Identifier().getText() + " is not defined in the current scope");
+            }
+
+            Shape type = this.typeEnvironment.getType(symbol);
 
             if (type == null) {
-                throw new TypeInferenceException("The unknown variable '" + ctx.Identifier().getText() + "' is referenced in the program.");
+                throw new TypeError("Type for variable '" + ctx.Identifier().getText() + "' is unknown.");
             }
 
             return type;
@@ -75,13 +87,13 @@ public class HindleyMilnerTypeInference {
 
         @Override
         public Shape visitLetIn(LambdaCalculusParser.LetInContext ctx) {
-            Shape initializerType = ctx.expression().accept(this);
+            Shape variableType = ctx.expression().accept(this);
 
-            TypeVariable bodyType = TypeVariable.create();
-            TypeEnvironment bodyTypeEnvironment = typeEnvironment.setType(ctx.Identifier().getText(), initializerType);
-            Shape inferredBodyType = ctx.body().accept(new HindleyMilnerVisitor(bodyTypeEnvironment));
+            LexicalScope bodyScope = lexicalScope.createChildScope();
+            Symbol variable = bodyScope.add(ctx.Identifier().getText());
+            typeEnvironment.setType(variable, variableType);
 
-            return unify(bodyType, inferredBodyType);
+            return ctx.body().accept(new HindleyMilnerVisitor(typeEnvironment, bodyScope));
         }
 
         @Override
@@ -89,8 +101,10 @@ public class HindleyMilnerTypeInference {
             Shape returnType = TypeVariable.create();
             Shape argumentType = TypeVariable.create();
 
-            TypeEnvironment bodyTypeEnvironment = typeEnvironment.setType(ctx.Identifier().getText(), argumentType);
-            Shape inferredReturnType = ctx.expression().accept(new HindleyMilnerVisitor(bodyTypeEnvironment));
+            LexicalScope bodyScope = lexicalScope.createChildScope();
+            Symbol argument = bodyScope.add(ctx.Identifier().getText());
+            typeEnvironment.setType(argument, argumentType);
+            Shape inferredReturnType = ctx.expression().accept(new HindleyMilnerVisitor(typeEnvironment, bodyScope));
 
             return AbstractionType.create(argumentType, unify(returnType, inferredReturnType));
         }
@@ -100,7 +114,7 @@ public class HindleyMilnerTypeInference {
             Shape callee = ctx.expression(0).accept(this);
 
             if (!(callee instanceof AbstractionType)) {
-                throw new TypeInferenceException("Tried to invoke function on " + callee);
+                throw new TypeError("Tried to invoke function on " + callee);
             }
 
             AbstractionType abstraction = (AbstractionType) callee.fresh();
@@ -120,15 +134,15 @@ public class HindleyMilnerTypeInference {
                 case "-":
                 case "*":
                 case "/":
-                    unify(ctx.expression(0).accept(this), NumberType.create());
-                    unify(ctx.expression(1).accept(this), NumberType.create());
-                    return NumberType.create();
+                    unify(ctx.expression(0).accept(this), IntType.create());
+                    unify(ctx.expression(1).accept(this), IntType.create());
+                    return IntType.create();
                 case "<":
                 case "<=":
                 case ">":
                 case ">=":
-                    unify(ctx.expression(0).accept(this), NumberType.create());
-                    unify(ctx.expression(1).accept(this), NumberType.create());
+                    unify(ctx.expression(0).accept(this), IntType.create());
+                    unify(ctx.expression(1).accept(this), IntType.create());
                     return BoolType.create();
                 case "==": {
                     // Maybe we should not allow comparing abstraction but whatever.
@@ -137,7 +151,7 @@ public class HindleyMilnerTypeInference {
                 }
 
                 default:
-                    throw new TypeInferenceException("Unknown operator " + operator);
+                    throw new TypeError("Unknown operator " + operator);
             }
         }
 

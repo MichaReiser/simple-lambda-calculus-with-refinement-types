@@ -1,7 +1,7 @@
 package ch.famreiser.hsr.seminar.typechecker.types;
 
-import ch.famreiser.hsr.seminar.typechecker.liquid.BoolConstraint;
-import ch.famreiser.hsr.seminar.typechecker.liquid.Constraint;
+import ch.famreiser.hsr.seminar.typechecker.liquid.constraints.BoolConstraint;
+import ch.famreiser.hsr.seminar.typechecker.liquid.constraints.Constraint;
 
 /**
  * Created by micha on 02.10.16.

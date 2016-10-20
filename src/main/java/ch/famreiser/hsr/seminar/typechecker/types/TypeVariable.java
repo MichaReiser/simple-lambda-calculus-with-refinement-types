@@ -40,6 +40,10 @@ public class TypeVariable implements Shape {
         return fresh;
     }
 
+    public long getIndex() {
+        return index;
+    }
+
     @Override
     public String toString() {
         if (pointsTo == null) {

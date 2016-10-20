@@ -2,128 +2,79 @@ package ch.famreiser.hsr.seminar.typechecker.liquid;
 
 import ch.famreiser.hsr.seminar.generated.LambdaCalculusBaseVisitor;
 import ch.famreiser.hsr.seminar.generated.LambdaCalculusParser;
+import ch.famreiser.hsr.seminar.typechecker.LexicalScope;
+import ch.famreiser.hsr.seminar.typechecker.Symbol;
 import ch.famreiser.hsr.seminar.typechecker.hm.HindleyMilnerTypeInference;
-import ch.famreiser.hsr.seminar.typechecker.liquid.solver.LiquidSolver;
-import ch.famreiser.hsr.seminar.typechecker.liquid.solver.SolverFactory;
+import ch.famreiser.hsr.seminar.typechecker.liquid.constraints.*;
 import ch.famreiser.hsr.seminar.typechecker.types.AbstractionType;
 import ch.famreiser.hsr.seminar.typechecker.types.BoolType;
-import ch.famreiser.hsr.seminar.typechecker.types.NumberType;
+import ch.famreiser.hsr.seminar.typechecker.types.IntType;
 import ch.famreiser.hsr.seminar.typechecker.types.Shape;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
+import com.google.common.base.Preconditions;
 import org.antlr.v4.runtime.ParserRuleContext;
-
-import java.util.*;
 
 public class LiquidTypeChecker {
 
     public Template infer(ParserRuleContext expression) {
-        return infer(TemplateEnvironment.empty(), expression);
+        Preconditions.checkNotNull(expression);
+
+        TemplateEnvironment templateEnvironment = TemplateEnvironment.empty();
+        LiquidInferenceResult constraintsResult = constraints(templateEnvironment, expression);
+
+        solve(templateEnvironment, constraintsResult.constraints);
+        return constraintsResult.template;
     }
 
-    public Template infer(TemplateEnvironment environment, ParserRuleContext expression) {
-        LiquidInferenceResult result = expression.accept(new LiquidTypeCheckerVisitor(environment));
-
+    private LiquidInferenceResult constraints(TemplateEnvironment environment, ParserRuleContext expression) {
+        LiquidInferenceResult result = expression.accept(new LiquidTypeCheckerVisitor(environment, LexicalScope.empty()));
 
         System.out.println(result);
-        Constraints splitConstraints = splitConstraints(result.constraints);
-        Solve(instantiate(environment, result.template), splitConstraints);
-        return result.template;
+        return result;
     }
 
-    private Constraints splitConstraints(Constraints constraints) {
-        Set<Constraint> result = new HashSet<>();
-
-        for (Constraint constraint : constraints) {
-            Iterables.addAll(result, constraint.split());
-        }
-
-        return Constraints.of(result);
-    }
-
-    private void Solve(Map<LiquidTypeVariable, Set<Constraint>> assignments, Constraints constraints) {
-        LiquidSolver solver = new SolverFactory().create();
-
-        System.out.println("Constraints " + constraints);
-
-        for (Constraint constraint : constraints) {
-            FluentIterable.from(constraint.getLiquidVariables())
-                .filter(variable -> !variable.equals(LiquidTypeVariable.nu()))
-                .forEach(variable -> {
-                    Iterator<Constraint> variableConstraintsIterator = assignments.get(variable).iterator();
-                    while (variableConstraintsIterator.hasNext()) {
-                        Constraint variableConstraint = variableConstraintsIterator.next();
-                        if (!solver.satisfies(variableConstraint, constraint)) {
-                            variableConstraintsIterator.remove();
-                        }
-                    }
-            });
-        }
-
-        solver.requestShutdown();
-
-        System.out.println(assignments);
-    }
-
-    private Map<LiquidTypeVariable, Set<Constraint>> instantiate(TemplateEnvironment environment, Template template) {
-        Map<LiquidTypeVariable, Set<Constraint>> assignments = new HashMap<>();
-        Iterable<LiquidTypeVariable> freeVariables = Sets.newHashSet(Iterables.filter(template.getPredicate().getLiquidVariables(), variable -> !variable.isNu()));
-
-        for (LiquidTypeVariable variable: freeVariables) {
-            Set<Constraint> constraints = Sets.newHashSet();
-            constraints.add(new BinaryConstraint(new NumberConstraint(0), BinaryConstraint.Operation.LESS_OR_EQUAL_THAN, LiquidTypeVariable.nu()));
-
-            for (LiquidTypeVariable otherVariable: freeVariables) {
-                constraints.add(new BinaryConstraint(LiquidTypeVariable.nu(), BinaryConstraint.Operation.LESS_THAN, otherVariable));
-                constraints.add(new BinaryConstraint(otherVariable, BinaryConstraint.Operation.LESS_OR_EQUAL_THAN, LiquidTypeVariable.nu()));
-            }
-
-            assignments.put(variable, constraints);
-        }
-
-        System.out.println(assignments);
-
-        return assignments;
+    private void solve(TemplateEnvironment environment, Constraints constraints) {
+        LiquidSolver solver = new LiquidSolver();
+        solver.solve(environment, constraints);
     }
 
     private static class LiquidTypeCheckerVisitor extends LambdaCalculusBaseVisitor<LiquidInferenceResult> {
 
         private final HindleyMilnerTypeInference hindleyMilnerTypeInference = new HindleyMilnerTypeInference();
-        private final TemplateEnvironment typeEnvironment;
+        private final TempSymbols tempSymbols;
+        private final TemplateEnvironment templateEnvironment;
+        private final LexicalScope scope;
 
-        public LiquidTypeCheckerVisitor() {
-            this(TemplateEnvironment.empty());
-        }
-
-        private LiquidTypeCheckerVisitor(TemplateEnvironment typeEnvironment) {
-            this.typeEnvironment = typeEnvironment;
+        public LiquidTypeCheckerVisitor(TemplateEnvironment environment, LexicalScope scope) {
+            this.templateEnvironment = environment;
+            this.tempSymbols = new TempSymbols(environment, scope);
+            this.scope = scope;
         }
 
         @Override
         public LiquidInferenceResult visitVariable(LambdaCalculusParser.VariableContext ctx) {
             hm(ctx); // ensures that the variable is defined
-            return new LiquidInferenceResult(typeEnvironment.getType(ctx.Identifier().getText()), Constraints.empty());
+            Symbol variable = scope.get(ctx.Identifier().getText());
+            return new LiquidInferenceResult(templateEnvironment.getType(variable), Constraints.empty());
         }
 
         @Override
         public LiquidInferenceResult visitConstant(LambdaCalculusParser.ConstantContext ctx) {
             Shape type = hm(ctx);
 
-            Constraint constraint;
+            Constraint valueConstraint;
 
             if (type instanceof BoolType) {
-                constraint = new BoolConstraint(Boolean.parseBoolean(ctx.Bool().getText()));
-            } else if (type instanceof NumberType) {
-                constraint = new NumberConstraint(Integer.parseInt(ctx.Int().getText()));
+                valueConstraint = new BoolConstraint(Boolean.parseBoolean(ctx.Bool().getText()));
+            } else if (type instanceof IntType) {
+                valueConstraint = new NumberConstraint(Integer.parseInt(ctx.Int().getText()));
             } else {
                 throw new UnsupportedOperationException("Unsupported base type " + type + " for constant.");
             }
 
-            constraint = new BinaryConstraint(LiquidTypeVariable.nu(), BinaryConstraint.Operation.EQUAL, constraint);
+            Constraint assignmentConstraint = new AssignmentConstraint(LiquidTypeVariable.nu(), valueConstraint);
 
-            return new LiquidInferenceResult(new TemplateType(LiquidTypeVariable.nu(), type, constraint));
+            return new LiquidInferenceResult(new TemplateType(type, assignmentConstraint));
         }
 
         @Override
@@ -137,48 +88,69 @@ public class LiquidTypeChecker {
 
         private LiquidInferenceResult application(LiquidInferenceResult abstraction, LiquidInferenceResult argument) {
             AbstractionTemplate calleeType = (AbstractionTemplate) abstraction.template;
-            // Template type = calleeType.getReturnType().substitute(calleeType.getArgument().getVariable(), calleeType.getVariable());  // TODO Substitute correctly
 
             Constraints constraints = abstraction.constraints
                     .union(argument.constraints)
-                    .add(new SubtypeConstraint(typeEnvironment, argument.template, calleeType.getArgument()));
+                    .addAll(SubtypeConstraint.createFor(environmentForCurrentScope(), argument.template, calleeType.getArgument()));
 
-            return new LiquidInferenceResult(calleeType, constraints);
+            // FIXME substitution
+            // Template returnType = calleeType.getReturnType().substitute(calleeType.getArgument().getPredicate(), argument.template.getPredicate());
+            return new LiquidInferenceResult(calleeType.getReturnType(), constraints);
         }
 
         @Override
         public LiquidInferenceResult visitAbstraction(LambdaCalculusParser.AbstractionContext ctx) {
             AbstractionTemplate type = fresh((AbstractionType) hm(ctx), ctx.Identifier().getText());
 
-            TemplateEnvironment bodyEnvironment = typeEnvironment.setType(ctx.Identifier().getText(), type.getArgument());
-            LiquidInferenceResult inferredBody = ctx.expression().accept(new LiquidTypeCheckerVisitor(bodyEnvironment));
 
+            LexicalScope bodyScope = scope.createChildScope();
+            Symbol argument = bodyScope.add(ctx.Identifier().getText());
+            templateEnvironment.setType(argument, type.getArgument());
+            LiquidInferenceResult inferredBody = ctx.expression().accept(new LiquidTypeCheckerVisitor(templateEnvironment, bodyScope));
+
+            TemplateEnvironment bodyEnvironment = templateEnvironment.forScope(bodyScope);
             Constraints constraints = inferredBody.constraints
                     .add(new WellFormednessConstraint(bodyEnvironment, type))
-                    .add(new SubtypeConstraint(bodyEnvironment, inferredBody.template, type.getReturnType()));
+                    .addAll(SubtypeConstraint.createFor(bodyEnvironment, inferredBody.template, type.getReturnType()));
 
             return new LiquidInferenceResult(type, constraints);
         }
 
         @Override
         public LiquidInferenceResult visitIfThenElse(LambdaCalculusParser.IfThenElseContext ctx) {
-            super.visitChildren(ctx);
-            Shape type = hm(ctx);
-            return new LiquidInferenceResult(new TemplateType(LiquidTypeVariable.nu(), type, BoolConstraint.alwaysTrue()), Constraints.empty());
+            Template returnType = fresh(hm(ctx));
+
+            LiquidInferenceResult condition = ctx.expression().accept(this);
+            LiquidInferenceResult thenBranch = ctx.body(0).accept(this);
+            LiquidInferenceResult elseBranch = ctx.body(1).accept(this);
+
+            TemplateEnvironment currentScopeEnvironment = environmentForCurrentScope();
+            Constraints constraints = condition.constraints
+                    .union(thenBranch.constraints)
+                    .union(elseBranch.constraints)
+                    .add(new WellFormednessConstraint(currentScopeEnvironment, returnType))
+                    .addAll(SubtypeConstraint.createFor(currentScopeEnvironment, thenBranch.template, returnType))
+                    .addAll(SubtypeConstraint.createFor(currentScopeEnvironment, elseBranch.template, returnType)); // FIXME use if environment
+
+            return new LiquidInferenceResult(returnType, constraints);
         }
 
         @Override
         public LiquidInferenceResult visitLetIn(LambdaCalculusParser.LetInContext ctx) {
             Template returnType = fresh(hm(ctx));
 
-            LiquidInferenceResult variable = ctx.expression().accept(this);
-            TemplateEnvironment bodyEnvironment = typeEnvironment.setType(ctx.Identifier().getText(), variable.template);
-            LiquidInferenceResult body = ctx.body().accept(new LiquidTypeCheckerVisitor(bodyEnvironment));
+            LiquidInferenceResult initializerType = ctx.expression().accept(this);
 
-            Constraints constraints = variable.constraints
+            LexicalScope bodyScope = scope.createChildScope();
+            Symbol variableSymbol = bodyScope.add(ctx.Identifier().getText());
+            templateEnvironment.setType(variableSymbol, initializerType.template);
+            LiquidInferenceResult body = ctx.body().accept(new LiquidTypeCheckerVisitor(templateEnvironment, bodyScope));
+
+            TemplateEnvironment bodyEnvironment = templateEnvironment.forScope(bodyScope);
+            Constraints constraints = initializerType.constraints
                     .union(body.constraints)
-                    .add(new WellFormednessConstraint(typeEnvironment, returnType))
-                    .add(new SubtypeConstraint(bodyEnvironment, body.template, returnType));
+                    .add(new WellFormednessConstraint(environmentForCurrentScope(), returnType))
+                    .addAll(SubtypeConstraint.createFor(bodyEnvironment, body.template, returnType));
             return new LiquidInferenceResult(returnType, constraints);
         }
 
@@ -186,29 +158,39 @@ public class LiquidTypeChecker {
         public LiquidInferenceResult visitBinaryExpression(LambdaCalculusParser.BinaryExpressionContext ctx) {
             LiquidInferenceResult left = ctx.expression(0).accept(this); // HM now happens multiple times..
             LiquidInferenceResult right = ctx.expression(1).accept(this);
+            BinaryConstraint.Operator operator = BinaryConstraint.Operator.fromString(ctx.Operator().getText());
+
             Shape returnShape = hm(ctx);
 
-            LiquidTypeVariable leftVariable = LiquidTypeVariable.named("left");
-            LiquidTypeVariable rightVariable = LiquidTypeVariable.named("right");
+            Symbol leftVariable = tempSymbols.get(left.template);
+            Symbol rightVariable = tempSymbols.get(right.template);
+
+            Constraint rightConstraint = BoolConstraint.alwaysTrue();
+
+            if (operator == BinaryConstraint.Operator.DIVISION) {
+                rightConstraint = new BinaryConstraint(LiquidTypeVariable.named(rightVariable), BinaryConstraint.Operator.NOT_EQUAL_TO, NumberConstraint.valueOf(0));
+            }
 
             AbstractionTemplate resultType = AbstractionTemplate.create(
-                    new TemplateType(rightVariable, left.template.getShape(), BoolConstraint.alwaysTrue()),
-                    new TemplateType(LiquidTypeVariable.nu(), returnShape, new BinaryConstraint(leftVariable, BinaryConstraint.Operation.fromString(ctx.Operator().getText()), rightVariable)),
+                    new TemplateType(right.template.getShape(), rightConstraint),
+                    new TemplateType(returnShape, new BinaryConstraint(LiquidTypeVariable.named(leftVariable), operator, LiquidTypeVariable.named(rightVariable))),
                     BoolConstraint.alwaysTrue()
             );
 
             AbstractionTemplate first = AbstractionTemplate.create(
-                    new TemplateType(leftVariable, right.template.getShape(), BoolConstraint.alwaysTrue()),
+                    new TemplateType(left.template.getShape(), BoolConstraint.alwaysTrue()),
                     resultType,
                     BoolConstraint.alwaysTrue());
-
-            // do we have to apply the abstraction rule too?
 
             return application(application(new LiquidInferenceResult(first), left), right);
         }
 
         private Shape hm(ParserRuleContext node) {
-            return hindleyMilnerTypeInference.infer(new ShapeTypeEnvironment(typeEnvironment), node);
+            return hindleyMilnerTypeInference.infer(templateEnvironment.asTypeEnvironment(), scope, node);
+        }
+
+        private TemplateEnvironment environmentForCurrentScope() {
+            return templateEnvironment.forScope(scope);
         }
 
         private Template fresh(Shape shape) {
@@ -216,11 +198,11 @@ public class LiquidTypeChecker {
         }
 
         private Template fresh(Shape shape, LiquidTypeVariable variable) {
-            return new TemplateType(LiquidTypeVariable.nu(), shape.resolved(), new BinaryConstraint(LiquidTypeVariable.nu(), BinaryConstraint.Operation.EQUAL, variable));
+            return new TemplateType(shape.resolved(), variable);
         }
 
         private AbstractionTemplate fresh(AbstractionType shape, String argumentName) {
-            return AbstractionTemplate.create(fresh(shape.getArgument(), LiquidTypeVariable.named(argumentName)), fresh(shape.getReturnType()), LiquidTypeVariable.kappa());
+            return AbstractionTemplate.create(fresh(shape.getArgument(), LiquidTypeVariable.kappa()), fresh(shape.getReturnType()), LiquidTypeVariable.kappa());
         }
 
         @Override
@@ -245,6 +227,34 @@ public class LiquidTypeChecker {
         @Override
         public String toString() {
             return MoreObjects.toStringHelper(this).add("template", template).add("constraints", constraints).toString();
+        }
+    }
+
+    private static class TempSymbols {
+        private final TemplateEnvironment environment;
+        private final LexicalScope scope;
+        private int nextTempId = 0;
+
+        private TempSymbols(TemplateEnvironment environment, LexicalScope scope) {
+            this.environment = environment;
+            this.scope = scope;
+        }
+
+        public Symbol get(Template template) {
+            Preconditions.checkNotNull(template);
+
+            Symbol symbol = environment.getSymbol(template);
+            if (symbol == null) {
+                symbol = fresh();
+                scope.add(symbol);
+                environment.setType(symbol, template);
+            }
+
+            return symbol;
+        }
+
+        public Symbol fresh() {
+            return Symbol.named("temp$$" + nextTempId++);
         }
     }
 }

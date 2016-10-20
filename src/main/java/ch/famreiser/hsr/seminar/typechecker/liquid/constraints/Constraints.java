@@ -1,4 +1,4 @@
-package ch.famreiser.hsr.seminar.typechecker.liquid;
+package ch.famreiser.hsr.seminar.typechecker.liquid.constraints;
 
 
 import com.google.common.collect.ImmutableSet;
@@ -27,6 +27,10 @@ public class Constraints implements Iterable<Constraint> {
 
     public Constraints add(Constraint constraint) {
         return new Constraints(ImmutableSet.<Constraint>builder().addAll(constraints).add(constraint).build());
+    }
+
+    public Constraints addAll(Iterable<? extends Constraint> toAdd) {
+        return new Constraints(ImmutableSet.<Constraint>builder().addAll(this.constraints).addAll(toAdd).build());
     }
 
     @Override

@@ -1,41 +1,79 @@
 package ch.famreiser.hsr.seminar.typechecker.liquid;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.UnmodifiableIterator;
+import ch.famreiser.hsr.seminar.typechecker.LexicalScope;
+import ch.famreiser.hsr.seminar.typechecker.Symbol;
+import ch.famreiser.hsr.seminar.typechecker.types.TypeEnvironment;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.Maps;
 
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
-public class TemplateEnvironment implements Iterable<Map.Entry<String, Template>> {
+public class TemplateEnvironment implements Iterable<Map.Entry<Symbol, Template>>{
 
-    private final ImmutableMap<String, Template> environment;
+    private final BiMap<Symbol, Template> environment;
+
+    private TemplateEnvironment(Map<Symbol, Template> environment) {
+        this.environment = HashBiMap.create(environment);
+    }
 
     public static TemplateEnvironment empty() {
-        return new TemplateEnvironment(ImmutableMap.of());
+        return new TemplateEnvironment(new HashMap<>());
     }
 
-    private TemplateEnvironment(ImmutableMap<String, Template> environment) {
-        this.environment = environment;
+    public void setType(Symbol symbol, Template type) {
+        Preconditions.checkNotNull(symbol);
+        Preconditions.checkNotNull(type);
+        Preconditions.checkState(!environment.containsKey(symbol), "The symbol " + symbol.getName() + " is already defined in the environment");
+
+        environment.put(symbol, type);
     }
 
-    public TemplateEnvironment setType(String name, Template type) {
-        return new TemplateEnvironment(ImmutableMap.<String, Template>builder().putAll(environment).put(name, type).build());
+    public Template getType(Symbol symbol) {
+        Preconditions.checkNotNull(symbol);
+        return environment.get(symbol);
     }
 
-    public Template getType(String name) {
-        return environment.get(name);
+    public Symbol getSymbol(Template template) {
+        return environment.inverse().get(template);
+    }
+
+    /**
+     * Returns a copy of this template environment that only contains the type information
+     * @return the type environment
+     */
+    public TypeEnvironment asTypeEnvironment() {
+        return TypeEnvironment.of(Maps.transformEntries(environment, (symbol, template) -> template.getShape()));
     }
 
     public Iterable<Template> templates() {
         return environment.values();
     }
 
-    @Override
-    public String toString() {
-        return environment.toString();
+    public Iterable<Symbol> getSymbols() { return environment.keySet(); }
+
+    public TemplateEnvironment forScope(LexicalScope scope) {
+        Preconditions.checkNotNull(scope);
+
+        Map<Symbol, Template> scopeEnvironment = new HashMap<>();
+
+        for (Symbol symbol : scope.getSymbols()) {
+            scopeEnvironment.put(symbol, this.getType(symbol));
+        }
+
+        return new TemplateEnvironment(scopeEnvironment);
     }
 
     @Override
-    public UnmodifiableIterator<Map.Entry<String, Template>> iterator() {
-        return this.environment.entrySet().iterator();
+    public Iterator<Map.Entry<Symbol, Template>> iterator() {
+        return environment.entrySet().iterator();
+    }
+
+    @Override
+    public String toString() {
+        return environment.toString();
     }
 }

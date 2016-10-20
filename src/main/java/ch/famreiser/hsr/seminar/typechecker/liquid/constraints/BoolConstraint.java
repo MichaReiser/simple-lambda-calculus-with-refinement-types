@@ -1,6 +1,4 @@
-package ch.famreiser.hsr.seminar.typechecker.liquid;
-
-import java.util.Collections;
+package ch.famreiser.hsr.seminar.typechecker.liquid.constraints;
 
 /**
  * A constant constraint that is either false or true
@@ -21,22 +19,22 @@ public class BoolConstraint implements Constraint {
         this.fulfilled = fulfilled;
     }
 
+    public boolean isFulfilled() {
+        return fulfilled;
+    }
+
     @Override
-    public Iterable<LiquidTypeVariable> getLiquidVariables() {
-        return Collections.emptyList();
+    public <T> T accept(ConstraintVisitor<? extends T> visitor) {
+        return visitor.visit(this);
+    }
+
+    @Override
+    public BoolConstraint substitute(Constraint to, Constraint with) {
+        return this;
     }
 
     @Override
     public String toString() {
         return fulfilled + "";
-    }
-
-    @Override
-    public Constraint substitute(Constraint toSubstitute, Constraint with) {
-        return this;
-    }
-
-    public boolean isFulfilled() {
-        return fulfilled;
     }
 }

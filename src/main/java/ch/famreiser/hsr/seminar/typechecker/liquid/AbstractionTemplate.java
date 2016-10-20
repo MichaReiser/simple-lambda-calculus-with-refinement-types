@@ -1,5 +1,6 @@
 package ch.famreiser.hsr.seminar.typechecker.liquid;
 
+import ch.famreiser.hsr.seminar.typechecker.liquid.constraints.Constraint;
 import ch.famreiser.hsr.seminar.typechecker.types.AbstractionType;
 
 public class AbstractionTemplate implements Template {
@@ -33,11 +34,6 @@ public class AbstractionTemplate implements Template {
     @Override
     public Constraint getPredicate() {
         return constraint;
-    }
-
-    @Override
-    public LiquidTypeVariable getVariable() {
-        return null;
     }
 
     @Override

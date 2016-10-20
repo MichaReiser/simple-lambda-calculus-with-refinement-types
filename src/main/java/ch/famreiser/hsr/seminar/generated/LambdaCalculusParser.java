@@ -1,13 +1,16 @@
 // Generated from /Users/micha/OneDrive/Hsr/Master/Seminar 2/simple-lambda-calculus/src/main/resources/LambdaCalculus.g4 by ANTLR 4.5.3
 package ch.famreiser.hsr.seminar.generated;
-import org.antlr.v4.runtime.atn.*;
-import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.misc.*;
-import org.antlr.v4.runtime.tree.*;
+import org.antlr.v4.runtime.atn.ATN;
+import org.antlr.v4.runtime.atn.ATNDeserializer;
+import org.antlr.v4.runtime.atn.ParserATNSimulator;
+import org.antlr.v4.runtime.atn.PredictionContextCache;
+import org.antlr.v4.runtime.dfa.DFA;
+import org.antlr.v4.runtime.tree.ParseTreeListener;
+import org.antlr.v4.runtime.tree.ParseTreeVisitor;
+import org.antlr.v4.runtime.tree.TerminalNode;
+
 import java.util.List;
-import java.util.Iterator;
-import java.util.ArrayList;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
 public class LambdaCalculusParser extends Parser {
@@ -115,6 +118,7 @@ public class LambdaCalculusParser extends Parser {
 			case T__3:
 			case T__6:
 			case Identifier:
+			case Operator:
 			case Int:
 			case Bool:
 				enterOuterAlt(_localctx, 1);
@@ -155,13 +159,13 @@ public class LambdaCalculusParser extends Parser {
 		}
 	}
 	public static class BinaryExpressionContext extends ExpressionContext {
+		public TerminalNode Operator() { return getToken(LambdaCalculusParser.Operator, 0); }
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
 		public ExpressionContext expression(int i) {
 			return getRuleContext(ExpressionContext.class,i);
 		}
-		public TerminalNode Operator() { return getToken(LambdaCalculusParser.Operator, 0); }
 		public BinaryExpressionContext(ExpressionContext ctx) { copyFrom(ctx); }
 		@Override
 		public void enterRule(ParseTreeListener listener) {
@@ -338,7 +342,7 @@ public class LambdaCalculusParser extends Parser {
 			int _alt;
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(36);
+			setState(40);
 			_errHandler.sync(this);
 			switch ( getInterpreter().adaptivePredict(_input,1,_ctx) ) {
 			case 1:
@@ -424,58 +428,53 @@ public class LambdaCalculusParser extends Parser {
 				break;
 			case 6:
 				{
-				_localctx = new BracketsContext(_localctx);
+				_localctx = new BinaryExpressionContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
 				setState(32);
-				match(T__0);
+				match(Operator);
 				setState(33);
 				expression(0);
 				setState(34);
+				expression(0);
+				}
+				break;
+			case 7:
+				{
+				_localctx = new BracketsContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+				setState(36);
+				match(T__0);
+				setState(37);
+				expression(0);
+				setState(38);
 				match(T__1);
 				}
 				break;
 			}
 			_ctx.stop = _input.LT(-1);
-			setState(45);
+			setState(46);
 			_errHandler.sync(this);
-			_alt = getInterpreter().adaptivePredict(_input,3,_ctx);
+			_alt = getInterpreter().adaptivePredict(_input,2,_ctx);
 			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
 					{
+					{
+					_localctx = new ApplicationContext(new ExpressionContext(_parentctx, _parentState));
+					pushNewRecursionContext(_localctx, _startState, RULE_expression);
+					setState(42);
+					if (!(precpred(_ctx, 6))) throw new FailedPredicateException(this, "precpred(_ctx, 6)");
 					setState(43);
-					_errHandler.sync(this);
-					switch ( getInterpreter().adaptivePredict(_input,2,_ctx) ) {
-					case 1:
-						{
-						_localctx = new ApplicationContext(new ExpressionContext(_parentctx, _parentState));
-						pushNewRecursionContext(_localctx, _startState, RULE_expression);
-						setState(38);
-						if (!(precpred(_ctx, 6))) throw new FailedPredicateException(this, "precpred(_ctx, 6)");
-						setState(39);
-						expression(7);
-						}
-						break;
-					case 2:
-						{
-						_localctx = new BinaryExpressionContext(new ExpressionContext(_parentctx, _parentState));
-						pushNewRecursionContext(_localctx, _startState, RULE_expression);
-						setState(40);
-						if (!(precpred(_ctx, 2))) throw new FailedPredicateException(this, "precpred(_ctx, 2)");
-						setState(41);
-						match(Operator);
-						setState(42);
-						expression(3);
-						}
-						break;
+					expression(7);
 					}
 					} 
 				}
-				setState(47);
+				setState(48);
 				_errHandler.sync(this);
-				_alt = getInterpreter().adaptivePredict(_input,3,_ctx);
+				_alt = getInterpreter().adaptivePredict(_input,2,_ctx);
 			}
 			}
 		}
@@ -519,7 +518,7 @@ public class LambdaCalculusParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(48);
+			setState(49);
 			expression(0);
 			}
 		}
@@ -545,28 +544,26 @@ public class LambdaCalculusParser extends Parser {
 		switch (predIndex) {
 		case 0:
 			return precpred(_ctx, 6);
-		case 1:
-			return precpred(_ctx, 2);
 		}
 		return true;
 	}
 
 	public static final String _serializedATN =
-		"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3\20\65\4\2\t\2\4\3"+
+		"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3\20\66\4\2\t\2\4\3"+
 		"\t\3\4\4\t\4\3\2\3\2\5\2\13\n\2\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3"+
-		"\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\5\3"+
-		"\'\n\3\3\3\3\3\3\3\3\3\3\3\7\3.\n\3\f\3\16\3\61\13\3\3\4\3\4\3\4\2\3\4"+
-		"\5\2\4\6\2\3\3\2\16\179\2\n\3\2\2\2\4&\3\2\2\2\6\62\3\2\2\2\b\13\5\4\3"+
-		"\2\t\13\3\2\2\2\n\b\3\2\2\2\n\t\3\2\2\2\13\3\3\2\2\2\f\r\b\3\1\2\r\'\7"+
-		"\f\2\2\16\'\t\2\2\2\17\20\7\3\2\2\20\21\7\f\2\2\21\22\7\4\2\2\22\23\7"+
-		"\5\2\2\23\'\5\4\3\7\24\25\7\6\2\2\25\26\7\f\2\2\26\27\7\7\2\2\27\30\5"+
-		"\4\3\2\30\31\7\b\2\2\31\32\5\6\4\2\32\'\3\2\2\2\33\34\7\t\2\2\34\35\5"+
-		"\4\3\2\35\36\7\n\2\2\36\37\5\6\4\2\37 \7\13\2\2 !\5\6\4\2!\'\3\2\2\2\""+
-		"#\7\3\2\2#$\5\4\3\2$%\7\4\2\2%\'\3\2\2\2&\f\3\2\2\2&\16\3\2\2\2&\17\3"+
-		"\2\2\2&\24\3\2\2\2&\33\3\2\2\2&\"\3\2\2\2\'/\3\2\2\2()\f\b\2\2).\5\4\3"+
-		"\t*+\f\4\2\2+,\7\r\2\2,.\5\4\3\5-(\3\2\2\2-*\3\2\2\2.\61\3\2\2\2/-\3\2"+
-		"\2\2/\60\3\2\2\2\60\5\3\2\2\2\61/\3\2\2\2\62\63\5\4\3\2\63\7\3\2\2\2\6"+
-		"\n&-/";
+		"\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3\3"+
+		"\3\3\3\3\3\3\5\3+\n\3\3\3\3\3\7\3/\n\3\f\3\16\3\62\13\3\3\4\3\4\3\4\2"+
+		"\3\4\5\2\4\6\2\3\3\2\16\17:\2\n\3\2\2\2\4*\3\2\2\2\6\63\3\2\2\2\b\13\5"+
+		"\4\3\2\t\13\3\2\2\2\n\b\3\2\2\2\n\t\3\2\2\2\13\3\3\2\2\2\f\r\b\3\1\2\r"+
+		"+\7\f\2\2\16+\t\2\2\2\17\20\7\3\2\2\20\21\7\f\2\2\21\22\7\4\2\2\22\23"+
+		"\7\5\2\2\23+\5\4\3\7\24\25\7\6\2\2\25\26\7\f\2\2\26\27\7\7\2\2\27\30\5"+
+		"\4\3\2\30\31\7\b\2\2\31\32\5\6\4\2\32+\3\2\2\2\33\34\7\t\2\2\34\35\5\4"+
+		"\3\2\35\36\7\n\2\2\36\37\5\6\4\2\37 \7\13\2\2 !\5\6\4\2!+\3\2\2\2\"#\7"+
+		"\r\2\2#$\5\4\3\2$%\5\4\3\2%+\3\2\2\2&\'\7\3\2\2\'(\5\4\3\2()\7\4\2\2)"+
+		"+\3\2\2\2*\f\3\2\2\2*\16\3\2\2\2*\17\3\2\2\2*\24\3\2\2\2*\33\3\2\2\2*"+
+		"\"\3\2\2\2*&\3\2\2\2+\60\3\2\2\2,-\f\b\2\2-/\5\4\3\t.,\3\2\2\2/\62\3\2"+
+		"\2\2\60.\3\2\2\2\60\61\3\2\2\2\61\5\3\2\2\2\62\60\3\2\2\2\63\64\5\4\3"+
+		"\2\64\7\3\2\2\2\5\n*\60";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {

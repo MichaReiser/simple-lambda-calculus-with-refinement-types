@@ -10,7 +10,7 @@ expression:     Identifier                                                  # va
             |   '(' Identifier ')' '=>' expression                          # abstraction
             |   'let' Identifier '=' expression 'in' body                   # letIn
             |   'if' (expression) 'then' body 'else' body                   # ifThenElse
-            |   expression Operator expression                              # binaryExpression
+            |   Operator expression expression                              # binaryExpression
             |   '(' expression ')'                                          # brackets
             ;
 
