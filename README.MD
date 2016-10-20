@@ -1,3 +1,3 @@
 # Liquid Types for the Simple Lambda Calculus
 
-Requires (Liquid Fixpoint)[https://github.com/ucsd-progsys/liquid-fixpoint]
+Requires [Liquid Fixpoint](https://github.com/ucsd-progsys/liquid-fixpoint)
